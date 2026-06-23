@@ -17,6 +17,13 @@ const generated = await import("./generate.ts")
 import { Script } from "@opencode-ai/script"
 import pkg from "../package.json"
 
+const isDirty = await $`git status --porcelain -uno`.text().then((x) => x.trim().length > 0)
+const suffix = isDirty
+  ? new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")
+  : await $`git rev-parse --short HEAD`.text().then((x) => x.trim())
+const buildVersion = `${pkg.version.replace(/-0$/, "")}-opencocodex.${suffix}`
+console.log(`Building version: ${buildVersion}`)
+
 const singleFlag = process.argv.includes("--single")
 const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
@@ -180,15 +187,15 @@ for (const item of targets) {
       autoloadTsconfig: true,
       autoloadPackageJson: true,
       target: name.replace(pkg.name, "bun") as any,
-      outfile: `dist/${name}/bin/opencode`,
-      execArgv: [`--user-agent=opencode/${Script.version}`, "--use-system-ca", "--"],
+      outfile: `dist/${name}/bin/${pkg.name}`,
+      execArgv: [`--user-agent=${pkg.name}/${buildVersion}`, "--use-system-ca", "--"],
       windows: {},
     },
     files: embeddedFileMap ? { "opencode-web-ui.gen.ts": embeddedFileMap } : {},
     entrypoints: ["./src/index.ts", parserWorker, workerPath, ...(embeddedFileMap ? ["opencode-web-ui.gen.ts"] : [])],
     define: {
       FFF_LIBC: JSON.stringify(item.abi === "musl" ? "musl" : "gnu"),
-      OPENCODE_VERSION: `'${Script.version}'`,
+      OPENCODE_VERSION: `'${buildVersion}'`,
       OPENCODE_MODELS_DEV: generated.modelsData,
       OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + workerRelativePath,
       OPENCODE_WORKER_PATH: workerPath,
@@ -200,7 +207,7 @@ for (const item of targets) {
 
   // Smoke test: only run if binary is for current platform
   if (item.os === process.platform && item.arch === process.arch && !item.abi) {
-    const binaryPath = `dist/${name}/bin/opencode`
+    const binaryPath = `dist/${name}/bin/${pkg.name}`
     console.log(`Running smoke test: ${binaryPath} --version`)
     try {
       const versionOutput = await $`${binaryPath} --version`.text()
@@ -216,8 +223,11 @@ for (const item of targets) {
     JSON.stringify(
       {
         name,
-        version: Script.version,
+        version: buildVersion,
         preferUnplugged: true,
+        bin: {
+          [pkg.name]: `./bin/${pkg.name}`,
+        },
         os: [item.os],
         cpu: [item.arch],
         ...(item.abi ? { libc: [item.abi] } : {}),
@@ -226,7 +236,7 @@ for (const item of targets) {
       2,
     ),
   )
-  binaries[name] = Script.version
+  binaries[name] = buildVersion
 }
 
 if (Script.release) {
@@ -237,7 +247,7 @@ if (Script.release) {
       await $`zip -r ../../${key}.zip *`.cwd(`dist/${key}/bin`)
     }
   }
-  await $`gh release upload v${Script.version} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
+  await $`gh release upload v${buildVersion} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
 }
 
 export { binaries }

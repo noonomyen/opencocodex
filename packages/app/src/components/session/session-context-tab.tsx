@@ -229,7 +229,24 @@ export function SessionContextTab() {
         const created = c.message.time.created
         const completed = c.message.time.completed
         if (created && completed && completed > created) {
-          const duration = (completed - created) / 1000
+          let toolDurationMs = 0
+          const parts = (sync().data.part[c.message.id] ?? []) as Part[]
+          for (const part of parts) {
+            if (part.type === "tool" && part.state) {
+              if ("time" in part.state && part.state.time) {
+                const time = part.state.time
+                const start = time.start
+                const end = "end" in time ? time.end : undefined
+                if (start && end && end > start) {
+                  toolDurationMs += (end - start)
+                }
+              }
+            }
+          }
+
+          const totalDurationMs = completed - created
+          const activeDurationMs = Math.max(100, totalDurationMs - toolDurationMs)
+          const duration = activeDurationMs / 1000
           const speed = (c.output + c.reasoning) / duration
           return `${speed.toFixed(1)} tokens/s`
         }

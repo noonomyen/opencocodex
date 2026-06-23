@@ -40,28 +40,36 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const activeStats = createMemo(() => {
     const message = activeMessage()
     if (!message) return
-    const elapsedMs = now() - message.time.created
-    const elapsedSec = Math.max(0, Math.round(elapsedMs / 1000))
-
     const parts = props.api.state.part(message.id)
+
+    let toolDurationMs = 0
     let charCount = 0
+
     for (const p of parts) {
       if (p.type === "text" && typeof p.text === "string") {
         charCount += p.text.length
       } else if (p.type === "reasoning" && typeof p.text === "string") {
         charCount += p.text.length
-      } else if (p.type === "tool" && p.state?.input) {
-        charCount += JSON.stringify(p.state.input).length
+      } else if (p.type === "tool" && p.state) {
+        if ("time" in p.state && p.state.time) {
+          const time = p.state.time
+          const start = time.start
+          const end = "end" in time ? (time.end ?? now()) : now()
+          if (start && end && end > start) {
+            toolDurationMs += (end - start)
+          }
+        }
       }
     }
-    const estimated = Math.ceil(charCount / 3.5)
-    const actual = (message.tokens.output ?? 0) + (message.tokens.reasoning ?? 0)
-    const tokens = Math.max(actual, estimated)
-    const tps = tokens > 0 ? tokens / Math.max(0.1, elapsedMs / 1000) : 0
+
+    const totalDurationMs = now() - message.time.created
+    const activeDurationMs = Math.max(100, totalDurationMs - toolDurationMs)
+    const activeSec = Math.max(0, Math.round(activeDurationMs / 1000))
+    const cps = charCount / (activeDurationMs / 1000)
 
     return {
-      elapsed: elapsedSec,
-      tps: tps,
+      elapsed: activeSec,
+      cps,
     }
   })
 
@@ -94,7 +102,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <Show when={activeStats()}>
         {(stats) => (
           <text fg={theme().info}>
-            {stats().elapsed}s • {stats().tps.toFixed(1)} t/s
+            {stats().elapsed}s • {stats().cps.toFixed(1)} c/s
           </text>
         )}
       </Show>

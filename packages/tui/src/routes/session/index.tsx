@@ -1471,20 +1471,42 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     return props.message.finish && !["tool-calls", "unknown"].includes(props.message.finish)
   })
 
+  const toolCallDuration = createMemo(() => {
+    let sum = 0
+    for (const part of props.parts) {
+      if (part.type === "tool" && part.state) {
+        if ("time" in part.state && part.state.time) {
+          const time = part.state.time
+          const start = time.start
+          const end = "end" in time ? time.end : undefined
+          if (start && end && end > start) {
+            sum += (end - start)
+          }
+        }
+      }
+    }
+    return sum
+  })
+
   const duration = createMemo(() => {
     if (!final()) return 0
     if (!props.message.time.completed) return 0
     const user = messages().find((x) => x.role === "user" && x.id === props.message.parentID)
     if (!user || !user.time) return 0
-    return props.message.time.completed - user.time.created
+    const totalMs = props.message.time.completed - user.time.created
+    const activeMs = Math.max(100, totalMs - toolCallDuration())
+    return activeMs
+  })
+
+  const outputTokens = createMemo(() => {
+    return (props.message.tokens.output ?? 0) + (props.message.tokens.reasoning ?? 0)
   })
 
   const avgTps = createMemo(() => {
     if (!final()) return 0
     const dur = duration() / 1000
     if (dur <= 0) return 0
-    const tokens = (props.message.tokens.output ?? 0) + (props.message.tokens.reasoning ?? 0)
-    return tokens / dur
+    return outputTokens() / dur
   })
 
   const childShortcut = useCommandShortcut("session.child.first")
@@ -1562,6 +1584,9 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
               </span>{" "}
               <span style={{ fg: theme.text }}>{Locale.titlecase(props.message.mode)}</span>
               <span style={{ fg: theme.textMuted }}> · {model()}</span>
+              <Show when={outputTokens() > 0}>
+                <span style={{ fg: theme.textMuted }}> · {outputTokens().toLocaleString()} tokens</span>
+              </Show>
               <Show when={duration()}>
                 <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
               </Show>

@@ -15,6 +15,7 @@
     "lint": "oxlint",
     "typecheck": "bun turbo typecheck",
     "upgrade-opentui": "bun run script/upgrade-opentui.ts",
+    "install:global": "bun run --cwd packages/opencode build --single --skip-install && bun add -g ./packages/opencode/dist/opencocodex-*",
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",
     "random": "echo 'Random script'",

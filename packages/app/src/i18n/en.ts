@@ -453,6 +453,8 @@ export const dict = {
   "context.stats.totalCost": "Total Cost",
   "context.stats.sessionCreated": "Session Created",
   "context.stats.lastActivity": "Last Activity",
+  "context.stats.cacheHitRate": "Cache Hit Rate",
+  "context.stats.speed": "Speed",
 
   "context.usage.tokens": "Tokens",
   "context.usage.usage": "Usage",

@@ -381,6 +381,8 @@ export const dict = {
   "context.stats.totalCost": "ต้นทุนทั้งหมด",
   "context.stats.sessionCreated": "สร้างเซสชันเมื่อ",
   "context.stats.lastActivity": "กิจกรรมล่าสุด",
+  "context.stats.cacheHitRate": "อัตราการชนแคช",
+  "context.stats.speed": "ความเร็ว",
 
   "context.usage.tokens": "โทเค็น",
   "context.usage.usage": "การใช้งาน",

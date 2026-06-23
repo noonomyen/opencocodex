@@ -1479,6 +1479,14 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     return props.message.time.completed - user.time.created
   })
 
+  const avgTps = createMemo(() => {
+    if (!final()) return 0
+    const dur = duration() / 1000
+    if (dur <= 0) return 0
+    const tokens = (props.message.tokens.output ?? 0) + (props.message.tokens.reasoning ?? 0)
+    return tokens / dur
+  })
+
   const childShortcut = useCommandShortcut("session.child.first")
   const backgroundShortcut = useCommandShortcut("session.background")
 
@@ -1556,6 +1564,9 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
               <span style={{ fg: theme.textMuted }}> · {model()}</span>
               <Show when={duration()}>
                 <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
+              </Show>
+              <Show when={avgTps() > 0}>
+                <span style={{ fg: theme.textMuted }}> · {avgTps().toFixed(1)} t/s</span>
               </Show>
               <Show when={props.message.error?.name === "MessageAbortedError"}>
                 <span style={{ fg: theme.textMuted }}> · interrupted</span>

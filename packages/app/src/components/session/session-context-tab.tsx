@@ -211,6 +211,31 @@ export function SessionContextTab() {
       label: "context.stats.cacheTokens",
       value: () => `${formatter().number(ctx()?.cacheRead)} / ${formatter().number(ctx()?.cacheWrite)}`,
     },
+    {
+      label: "context.stats.cacheHitRate",
+      value: () => {
+        const c = ctx()
+        if (!c) return "—"
+        const totalInput = c.input + c.cacheRead
+        if (totalInput === 0) return "0%"
+        return `${((c.cacheRead / totalInput) * 100).toFixed(1)}%`
+      },
+    },
+    {
+      label: "context.stats.speed",
+      value: () => {
+        const c = ctx()
+        if (!c) return "—"
+        const created = c.message.time.created
+        const completed = c.message.time.completed
+        if (created && completed && completed > created) {
+          const duration = (completed - created) / 1000
+          const speed = (c.output + c.reasoning) / duration
+          return `${speed.toFixed(1)} tokens/s`
+        }
+        return "—"
+      },
+    },
     { label: "context.stats.userMessages", value: () => counts().user.toLocaleString(language.intl()) },
     { label: "context.stats.assistantMessages", value: () => counts().assistant.toLocaleString(language.intl()) },
     { label: "context.stats.totalCost", value: cost },

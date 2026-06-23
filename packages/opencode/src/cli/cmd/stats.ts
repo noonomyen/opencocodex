@@ -20,6 +20,8 @@ interface SessionStats {
       write: number
     }
   }
+  totalDuration: number
+  totalOutputTokensForSpeed: number
   toolUsage: Record<string, number>
   modelUsage: Record<
     string,
@@ -34,6 +36,8 @@ interface SessionStats {
         }
       }
       cost: number
+      duration: number
+      outputTokensForSpeed: number
     }
   >
   dateRange: {
@@ -134,6 +138,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
         write: 0,
       },
     },
+    totalDuration: 0,
+    totalOutputTokensForSpeed: 0,
     toolUsage: {},
     modelUsage: {},
     dateRange: {
@@ -177,8 +183,12 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
             messages: number
             tokens: { input: number; output: number; cache: { read: number; write: number } }
             cost: number
+            duration: number
+            outputTokensForSpeed: number
           }
         > = {}
+        let sessionDuration = 0
+        let sessionOutputTokensForSpeed = 0
 
         for (const message of messages) {
           if (message.info.role === "assistant") {
@@ -188,17 +198,31 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
                 messages: 0,
                 tokens: { input: 0, output: 0, cache: { read: 0, write: 0 } },
                 cost: 0,
+                duration: 0,
+                outputTokensForSpeed: 0,
               }
             }
             sessionModelUsage[modelKey].messages++
             sessionModelUsage[modelKey].cost += message.info.cost || 0
 
-            if (message.info.tokens) {
+            const hasTokens = message.info.tokens
+            if (hasTokens) {
               sessionModelUsage[modelKey].tokens.input += message.info.tokens.input || 0
               sessionModelUsage[modelKey].tokens.output +=
                 (message.info.tokens.output || 0) + (message.info.tokens.reasoning || 0)
               sessionModelUsage[modelKey].tokens.cache.read += message.info.tokens.cache?.read || 0
               sessionModelUsage[modelKey].tokens.cache.write += message.info.tokens.cache?.write || 0
+            }
+
+            const created = message.info.time.created
+            const completed = message.info.time.completed
+            if (created && completed && completed > created) {
+              const durSec = (completed - created) / 1000
+              const outTokens = hasTokens ? ((message.info.tokens.output || 0) + (message.info.tokens.reasoning || 0)) : 0
+              sessionModelUsage[modelKey].duration += durSec
+              sessionModelUsage[modelKey].outputTokensForSpeed += outTokens
+              sessionDuration += durSec
+              sessionOutputTokensForSpeed += outTokens
             }
           }
 
@@ -221,6 +245,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
             sessionTokens.cache.write,
           sessionToolUsage,
           sessionModelUsage,
+          sessionDuration,
+          sessionOutputTokensForSpeed,
           earliestTime: cutoffTime > 0 ? session.time.updated : session.time.created,
           latestTime: session.time.updated,
         }
@@ -240,6 +266,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
     stats.totalTokens.reasoning += result.sessionTokens.reasoning
     stats.totalTokens.cache.read += result.sessionTokens.cache.read
     stats.totalTokens.cache.write += result.sessionTokens.cache.write
+    stats.totalDuration += result.sessionDuration
+    stats.totalOutputTokensForSpeed += result.sessionOutputTokensForSpeed
 
     for (const [tool, count] of Object.entries(result.sessionToolUsage)) {
       stats.toolUsage[tool] = (stats.toolUsage[tool] || 0) + count
@@ -251,6 +279,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
           messages: 0,
           tokens: { input: 0, output: 0, cache: { read: 0, write: 0 } },
           cost: 0,
+          duration: 0,
+          outputTokensForSpeed: 0,
         }
       }
       stats.modelUsage[model].messages += usage.messages
@@ -259,6 +289,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
       stats.modelUsage[model].tokens.cache.read += usage.tokens.cache.read
       stats.modelUsage[model].tokens.cache.write += usage.tokens.cache.write
       stats.modelUsage[model].cost += usage.cost
+      stats.modelUsage[model].duration += usage.duration
+      stats.modelUsage[model].outputTokensForSpeed += usage.outputTokensForSpeed
     }
   }
 
@@ -325,6 +357,12 @@ export function displayStats(stats: SessionStats, toolLimit?: number, modelLimit
   console.log(renderRow("Output", formatNumber(stats.totalTokens.output)))
   console.log(renderRow("Cache Read", formatNumber(stats.totalTokens.cache.read)))
   console.log(renderRow("Cache Write", formatNumber(stats.totalTokens.cache.write)))
+  
+  const totalInputForCache = stats.totalTokens.input + stats.totalTokens.cache.read
+  const cacheHitPercent = totalInputForCache > 0 ? (stats.totalTokens.cache.read / totalInputForCache) * 100 : 0
+  const avgSpeed = stats.totalDuration > 0 ? stats.totalOutputTokensForSpeed / stats.totalDuration : 0
+  console.log(renderRow("Cache Hit Rate", `${cacheHitPercent.toFixed(1)}%`))
+  console.log(renderRow("Avg Speed", `${avgSpeed.toFixed(1)} tokens/s`))
   console.log("└────────────────────────────────────────────────────────┘")
   console.log()
 
@@ -344,6 +382,12 @@ export function displayStats(stats: SessionStats, toolLimit?: number, modelLimit
       console.log(renderRow("  Output Tokens", formatNumber(usage.tokens.output)))
       console.log(renderRow("  Cache Read", formatNumber(usage.tokens.cache.read)))
       console.log(renderRow("  Cache Write", formatNumber(usage.tokens.cache.write)))
+      
+      const modelInputForCache = usage.tokens.input + usage.tokens.cache.read
+      const modelCacheHitPercent = modelInputForCache > 0 ? (usage.tokens.cache.read / modelInputForCache) * 100 : 0
+      const modelAvgSpeed = usage.duration > 0 ? usage.outputTokensForSpeed / usage.duration : 0
+      console.log(renderRow("  Cache Hit Rate", `${modelCacheHitPercent.toFixed(1)}%`))
+      console.log(renderRow("  Avg Speed", `${modelAvgSpeed.toFixed(1)} tokens/s`))
       console.log(renderRow("  Cost", `$${usage.cost.toFixed(4)}`))
       console.log("├────────────────────────────────────────────────────────┤")
     }

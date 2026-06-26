@@ -40,36 +40,31 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const activeStats = createMemo(() => {
     const message = activeMessage()
     if (!message) return
+
     const parts = props.api.state.part(message.id)
-
-    let toolDurationMs = 0
-    let charCount = 0
-
-    for (const p of parts) {
-      if (p.type === "text" && typeof p.text === "string") {
-        charCount += p.text.length
-      } else if (p.type === "reasoning" && typeof p.text === "string") {
-        charCount += p.text.length
-      } else if (p.type === "tool" && p.state) {
-        if ("time" in p.state && p.state.time) {
-          const time = p.state.time
-          const start = time.start
-          const end = "end" in time ? (time.end ?? now()) : now()
-          if (start && end && end > start) {
-            toolDurationMs += (end - start)
-          }
+    const toolDurationMs = parts.reduce((sum, p) => {
+      if (p.type === "tool" && p.state && "time" in p.state && p.state.time) {
+        const time = p.state.time
+        const start = time.start
+        const end = "end" in time ? (time.end ?? now()) : now()
+        if (start && end && end > start) {
+          return sum + (end - start)
         }
       }
-    }
+      return sum
+    }, 0)
 
-    const totalDurationMs = now() - message.time.created
-    const activeDurationMs = Math.max(100, totalDurationMs - toolDurationMs)
-    const activeSec = Math.max(0, Math.round(activeDurationMs / 1000))
-    const cps = charCount / (activeDurationMs / 1000)
+    const activeDurationMs = Math.max(100, now() - message.time.created - toolDurationMs)
 
     return {
-      elapsed: activeSec,
-      cps,
+      elapsed: Math.max(0, Math.round(activeDurationMs / 1000)),
+      cps:
+        parts.reduce((sum, p) => {
+          if ((p.type === "text" || p.type === "reasoning") && typeof p.text === "string") {
+            return sum + p.text.length
+          }
+          return sum
+        }, 0) / (activeDurationMs / 1000),
     }
   })
 

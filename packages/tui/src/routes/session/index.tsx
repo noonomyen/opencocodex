@@ -1472,20 +1472,17 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
   })
 
   const toolCallDuration = createMemo(() => {
-    let sum = 0
-    for (const part of props.parts) {
-      if (part.type === "tool" && part.state) {
-        if ("time" in part.state && part.state.time) {
-          const time = part.state.time
-          const start = time.start
-          const end = "end" in time ? time.end : undefined
-          if (start && end && end > start) {
-            sum += (end - start)
-          }
+    return props.parts.reduce((sum, part) => {
+      if (part.type === "tool" && part.state && "time" in part.state && part.state.time) {
+        const time = part.state.time
+        const start = time.start
+        const end = "end" in time ? time.end : undefined
+        if (start && end && end > start) {
+          return sum + (end - start)
         }
       }
-    }
-    return sum
+      return sum
+    }, 0)
   })
 
   const duration = createMemo(() => {
@@ -1493,9 +1490,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     if (!props.message.time.completed) return 0
     const user = messages().find((x) => x.role === "user" && x.id === props.message.parentID)
     if (!user || !user.time) return 0
-    const totalMs = props.message.time.completed - user.time.created
-    const activeMs = Math.max(100, totalMs - toolCallDuration())
-    return activeMs
+    return Math.max(100, props.message.time.completed - user.time.created - toolCallDuration())
   })
 
   const outputTokens = createMemo(() => {

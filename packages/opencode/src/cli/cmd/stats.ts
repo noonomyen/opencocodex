@@ -359,10 +359,8 @@ export function displayStats(stats: SessionStats, toolLimit?: number, modelLimit
   console.log(renderRow("Cache Write", formatNumber(stats.totalTokens.cache.write)))
   
   const totalInputForCache = stats.totalTokens.input + stats.totalTokens.cache.read
-  const cacheHitPercent = totalInputForCache > 0 ? (stats.totalTokens.cache.read / totalInputForCache) * 100 : 0
-  const avgSpeed = stats.totalDuration > 0 ? stats.totalOutputTokensForSpeed / stats.totalDuration : 0
-  console.log(renderRow("Cache Hit Rate", `${cacheHitPercent.toFixed(1)}%`))
-  console.log(renderRow("Avg Speed", `${avgSpeed.toFixed(1)} tokens/s`))
+  console.log(renderRow("Cache Hit Rate", `${(totalInputForCache > 0 ? (stats.totalTokens.cache.read / totalInputForCache) * 100 : 0).toFixed(1)}%`))
+  console.log(renderRow("Avg Speed", `${(stats.totalDuration > 0 ? stats.totalOutputTokensForSpeed / stats.totalDuration : 0).toFixed(1)} tokens/s`))
   console.log("└────────────────────────────────────────────────────────┘")
   console.log()
 
@@ -384,10 +382,8 @@ export function displayStats(stats: SessionStats, toolLimit?: number, modelLimit
       console.log(renderRow("  Cache Write", formatNumber(usage.tokens.cache.write)))
       
       const modelInputForCache = usage.tokens.input + usage.tokens.cache.read
-      const modelCacheHitPercent = modelInputForCache > 0 ? (usage.tokens.cache.read / modelInputForCache) * 100 : 0
-      const modelAvgSpeed = usage.duration > 0 ? usage.outputTokensForSpeed / usage.duration : 0
-      console.log(renderRow("  Cache Hit Rate", `${modelCacheHitPercent.toFixed(1)}%`))
-      console.log(renderRow("  Avg Speed", `${modelAvgSpeed.toFixed(1)} tokens/s`))
+      console.log(renderRow("  Cache Hit Rate", `${(modelInputForCache > 0 ? (usage.tokens.cache.read / modelInputForCache) * 100 : 0).toFixed(1)}%`))
+      console.log(renderRow("  Avg Speed", `${(usage.duration > 0 ? usage.outputTokensForSpeed / usage.duration : 0).toFixed(1)} tokens/s`))
       console.log(renderRow("  Cost", `$${usage.cost.toFixed(4)}`))
       console.log("├────────────────────────────────────────────────────────┤")
     }

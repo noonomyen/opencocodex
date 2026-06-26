@@ -1589,14 +1589,14 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
               <Show when={outputTokens() > 0}>
                 <span style={{ fg: theme.textMuted }}> · {outputTokens().toLocaleString()} tokens</span>
               </Show>
-              <Show when={duration()}>
-                <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
+              <Show when={reqCacheHitRate() !== null}>
+                <span style={{ fg: theme.textMuted }}> · {reqCacheHitRate()!.toFixed(1)}% cache</span>
               </Show>
               <Show when={avgTps() > 0}>
                 <span style={{ fg: theme.textMuted }}> · {avgTps().toFixed(1)} t/s</span>
               </Show>
-              <Show when={reqCacheHitRate() !== null}>
-                <span style={{ fg: theme.textMuted }}> · {reqCacheHitRate()!.toFixed(1)}% cache</span>
+              <Show when={duration()}>
+                <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
               </Show>
               <Show when={props.message.error?.name === "MessageAbortedError"}>
                 <span style={{ fg: theme.textMuted }}> · interrupted</span>

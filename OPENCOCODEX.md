@@ -6,8 +6,8 @@
   * Estimates tokens using character length divided by 3.5 (for text, reasoning, and tool inputs) before resolving to the exact token count upon message completion.
   * Calculates the cache hit rate using `cacheRead / (input + cacheRead) * 100`.
 * **Locations:**
-  * **TUI Sidebar:** [packages/tui/src/feature-plugins/sidebar/context.tsx](./packages/tui/src/feature-plugins/sidebar/context.tsx) (real-time updates via 200ms interval, excluding active tool runtimes).
-  * **TUI Session View:** [packages/tui/src/routes/session/index.tsx](./packages/tui/src/routes/session/index.tsx) (completed average tps based on active duration).
+  * **TUI Sidebar:** [packages/tui/src/feature-plugins/sidebar/context.tsx](./packages/tui/src/feature-plugins/sidebar/context.tsx) (real-time updates via 200ms interval, excluding active tool runtimes; now also displays the session's overall accumulated cache hit rate).
+  * **TUI Session View:** [packages/tui/src/routes/session/index.tsx](./packages/tui/src/routes/session/index.tsx) (completed average tps based on active duration; now also displays the request-specific cache hit rate in the message footer).
   * **Web UI Session Tab:** [packages/app/src/components/session/session-context-tab.tsx](./packages/app/src/components/session/session-context-tab.tsx) (completed average speed based on active duration).
   * **CLI Stats Command:** [packages/opencode/src/cli/cmd/stats.ts](./packages/opencode/src/cli/cmd/stats.ts) (accumulated total/per-model tps and cache hit rate).
 

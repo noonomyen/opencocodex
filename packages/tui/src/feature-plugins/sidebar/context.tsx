@@ -74,20 +74,28 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   })
 
   const state = createMemo(() => {
-    const last = msg().findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
+    const assistants = msg().filter((item): item is AssistantMessage => item.role === "assistant")
+    const totalCacheRead = assistants.reduce((sum, item) => sum + (item.tokens.cache?.read ?? 0), 0)
+    const sumInput = assistants.reduce((sum, item) => sum + (item.tokens.input ?? 0), 0) + totalCacheRead
+    const cacheHitRate = sumInput > 0 ? (totalCacheRead / sumInput) * 100 : null
+
+    const last = assistants.findLast((item) => item.tokens.output > 0)
     if (!last) {
       return {
         tokens: 0,
         percent: null,
+        cacheHitRate,
       }
     }
 
     const tokens =
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
     const model = props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
+
     return {
       tokens,
       percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : null,
+      cacheHitRate,
     }
   })
 
@@ -99,6 +107,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
       <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
       <text fg={theme().textMuted}>{money.format(cost())} spent</text>
+      <Show when={state().cacheHitRate !== null}>
+        <text fg={theme().textMuted}>{(state().cacheHitRate ?? 0).toFixed(1)}% cache hit</text>
+      </Show>
       <Show when={activeStats()}>
         {(stats) => (
           <text fg={theme().info}>

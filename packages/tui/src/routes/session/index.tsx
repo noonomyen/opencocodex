@@ -1509,6 +1509,13 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     return outputTokens() / dur
   })
 
+  const reqCacheHitRate = createMemo(() => {
+    const cacheRead = props.message.tokens.cache?.read ?? 0
+    const totalInput = (props.message.tokens.input ?? 0) + cacheRead
+    if (totalInput <= 0) return null
+    return (cacheRead / totalInput) * 100
+  })
+
   const childShortcut = useCommandShortcut("session.child.first")
   const backgroundShortcut = useCommandShortcut("session.background")
 
@@ -1592,6 +1599,9 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
               </Show>
               <Show when={avgTps() > 0}>
                 <span style={{ fg: theme.textMuted }}> · {avgTps().toFixed(1)} t/s</span>
+              </Show>
+              <Show when={reqCacheHitRate() !== null}>
+                <span style={{ fg: theme.textMuted }}> · {reqCacheHitRate()!.toFixed(1)}% cache</span>
               </Show>
               <Show when={props.message.error?.name === "MessageAbortedError"}>
                 <span style={{ fg: theme.textMuted }}> · interrupted</span>
